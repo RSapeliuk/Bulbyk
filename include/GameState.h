@@ -6,5 +6,6 @@ enum class GameState
 	PLAYING,
 	BOSS,
 	TRANSITION,
-	GAMEOVER
+	GAMEOVER,
+	PAUSE
 };

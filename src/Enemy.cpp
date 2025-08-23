@@ -2,35 +2,53 @@
 #include <raylib.h>
 #include <raymath.h>
 
-Enemy::Enemy(const Vector2 &startPos, float speed, float size)
-  : position(startPos)
-  , speed(speed)
-  , color(RED)
-  , size(size)
-{}
+Enemy::Enemy(Vector2 position, float health, float speed, float damage, float radius)
+  : position_{position}
+    , velocity_{0.0f, 0.0f}
+    , health_{health}
+    , max_health_{health}
+    , speed_{speed}
+    , damage_{damage}
+    , radius_{radius} {
+}
 
-void Enemy::Update(const Vector2 &targetPos) {
-  float dt = GetFrameTime();
+Rectangle Enemy::get_bounds() const {
+  return Rectangle{
+    position_.x - radius_,
+    position_.y - radius_,
+    radius_ * 2.f,
+    radius_ * 2.f
+  };
+}
 
-  Vector2 dir = Vector2Subtract(targetPos, position);
-  if (float len = Vector2Length(dir); len != 0.0f) {
-    dir.x /= len;
-    dir.y /= len;
+void Enemy::take_damage(float damage) {
+  health_ = std::max(0.f, health_ - damage);
+
+  if (health_ <= 0.f) {
+    active_ = false;
   }
-
-  position.x += dir.x * speed * dt;
-  position.y += dir.y * speed * dt;
 }
 
-void Enemy::Draw() const {
-  DrawRectangleV(
-    {position.x - size/2, position.y - size/2},
-    {size, size},
-    color
-    );
-}
+void Enemy::move_towards(const Vector2 &target, float delta_time) {
+  Vector2 direction = {
+    target.x - position_.x,
+    target.y - position_.y
+  };
 
-Rectangle Enemy::GetBounds() const {
-  return {position.x - size/2, position.y - size/2, size, size};
-}
+  float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
 
+  if (distance > radius_) {
+    direction.x /= distance;
+    direction.y /= distance;
+
+    velocity_ = {
+      direction.x * speed_,
+      direction.y * speed_
+    };
+
+    position_.x += velocity_.x * delta_time;
+    position_.y += velocity_.y * delta_time;
+  } else {
+    velocity_ = {0.f, 0.f};
+  }
+}
