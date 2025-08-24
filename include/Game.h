@@ -36,6 +36,8 @@ private:
   void draw_ui() const;
   void toggle_language();
 
+  int get_max_enemies() const;
+
   void unload();
 
   // Ігрова логіка
@@ -46,8 +48,12 @@ private:
   void cleanup_dead_objects();
   void update_timers();
 
+  void restart_game();
+
   Enemy* find_nearest_enemy() const;
   Vector2 get_random_spawn_position() const;
+
+  void update_difficulty();
 
 
 #ifdef _DEBUG

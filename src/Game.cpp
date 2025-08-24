@@ -37,15 +37,22 @@ void Game::init() {
 
 void Game::update() {
   const float dt = GetFrameTime();
-  game_time_ += dt;
 
   switch (state_) {
     case GameState::PLAYING:
-      handle_input();
       update_timers();
+      game_time_ += dt;
+      static float difficulty_timer = 5.f;
+      difficulty_timer -= dt;
+      handle_input();
+      if (difficulty_timer <= 0.f) {
+        difficulty_timer = 5.f;
+        update_difficulty();
+      }
+
       if (player_ && player_->is_alive()) {
         player_->update();
-      } else {
+      } else if (state_ == GameState::PLAYING) {
         state_ = GameState::GAMEOVER;
       }
 
@@ -80,7 +87,6 @@ void Game::update() {
       break;
     case GameState::GAMEOVER:
       handle_input();
-
       break;
     default:
       break;
@@ -126,7 +132,7 @@ void Game::draw_game_objects() {
     }
   }
 
-  for (auto &b : bullets_) {
+  for (auto &b: bullets_) {
     if (b && b->is_active()) {
       b->draw();
     }
@@ -134,7 +140,6 @@ void Game::draw_game_objects() {
 }
 
 void Game::draw_ui() const {
-
   const int ui_margin = 10;
   const int ui_font_size = 20;
   const int ui_line_height = 25;
@@ -186,10 +191,10 @@ void Game::draw_state_messages() const {
       TextUtils::draw_text_centered("game_over", center_x, center_y - 25, 50, RED);
       TextUtils::draw_text_centered("restart_hint", center_x, center_y + 40, 25, WHITE);
 
-      const char* stats_format = TextUtils::get_text("survival_stats");
-      const char* final_stats = TextFormat(stats_format, game_time_, kill_count_);
+      const char *stats_format = TextUtils::get_text("survival_stats");
+      const char *final_stats = TextFormat(stats_format, game_time_, kill_count_);
       const int stats_width = MeasureText(final_stats, 20);
-      DrawText(final_stats, center_x - stats_width/2, center_y + 80, 20, LIGHTGRAY);
+      DrawText(final_stats, center_x - stats_width / 2, center_y + 80, 20, LIGHTGRAY);
 
       TextUtils::draw_text_centered("language_switch", center_x, center_y + 110, 16, LIGHTGRAY);
       break;
@@ -198,11 +203,11 @@ void Game::draw_state_messages() const {
     case GameState::PLAYING: {
       if (game_time_ < 10.0f) {
         TextUtils::draw_text_localized("move_controls",
-                                     10, SCREEN_HEIGHT - 80, 16, LIGHTGRAY);
+                                       10, SCREEN_HEIGHT - 80, 16, LIGHTGRAY);
         TextUtils::draw_text_localized("auto_shoot_hint",
-                                     10, SCREEN_HEIGHT - 60, 16, LIGHTGRAY);
+                                       10, SCREEN_HEIGHT - 60, 16, LIGHTGRAY);
         TextUtils::draw_text_localized("language_switch",
-                                     10, SCREEN_HEIGHT - 40, 16, LIGHTGRAY);
+                                       10, SCREEN_HEIGHT - 40, 16, LIGHTGRAY);
       }
       break;
     }
@@ -306,21 +311,28 @@ Vector2 Game::get_random_spawn_position() const {
   }
 }
 
+void Game::update_difficulty() {
+  constexpr float difficulty_time = 30.f;
+  const int difficulty_level = static_cast<int>(game_time_ / difficulty_time) + 1;
+
+  spawn_interval_ = std::max(0.5f, DEFAULT_SPAWN_INTERVAL - (difficulty_level * 0.2f));
+
+  shoot_interval_ = std::max(0.05f, DEFAULT_SHOOT_INTERVAL - (difficulty_level * 0.02f));
+}
+
 void Game::spawn_enemy() {
-  if (enemies_.size() >= 50) return;
+  if (static_cast<int>(enemies_.size()) >= get_max_enemies()) return;
 
   auto spawn_pos = get_random_spawn_position();
-  auto new_enemy = std::make_unique<ColoradoBeetle>(spawn_pos);
 
-  if (new_enemy) {
-    enemies_.push_back(std::move(new_enemy));
-  }
+  auto new_enemy = std::make_unique<ColoradoBeetle>(spawn_pos);
+  enemies_.push_back(std::move(new_enemy));
 }
 
 void Game::spawn_bullet() {
   if (!player_ || !player_->is_alive()) return;
 
-  auto* target = find_nearest_enemy();
+  auto *target = find_nearest_enemy();
   if (!target) return;
 
   auto bullet = std::make_unique<Bullet>(player_->get_position(), target->get_position(), 300.f, 25.f);
@@ -329,22 +341,22 @@ void Game::spawn_bullet() {
   shoot_timer_ = shoot_interval_;
 }
 
-Enemy* Game::find_nearest_enemy() const {
+Enemy *Game::find_nearest_enemy() const {
   if (enemies_.empty() || !player_) return nullptr;
 
   const auto player_pos = player_->get_position();
-  float min_distance = std::numeric_limits<float>::max();
-  Enemy* nearest = nullptr;
+  float min_distance_sq = std::numeric_limits<float>::max();
+  Enemy *nearest = nullptr;
 
-  for (auto &e: enemies_) {
+  for (const auto &e: enemies_) {
     if (!e || !e->is_alive()) continue;
 
     const auto [x, y] = e->get_position();
     const float dx = player_pos.x - x;
     const float dy = player_pos.y - y;
 
-    if (const float distance = dx * dx + dy * dy; distance < min_distance) {
-      min_distance = distance;
+    if (const float distance = dx * dx + dy * dy; distance < min_distance_sq) {
+      min_distance_sq = distance;
       nearest = e.get();
     }
   }
@@ -359,6 +371,24 @@ void Game::update_timers() {
   shoot_timer_ = std::max(0.f, shoot_timer_ - delta_time);
 }
 
+void Game::restart_game() {
+  player_ = std::make_unique<Player>(Vector2{
+    static_cast<float>(SCREEN_WIDTH) / 2.f,
+    static_cast<float>(SCREEN_HEIGHT) / 2.f
+  });
+  enemies_.clear();
+  bullets_.clear();
+  spawn_timer_ = spawn_interval_;
+  kill_count_ = 0;
+  game_time_ = 0.0f;
+  shoot_timer_ = 0.0f;
+  state_ = GameState::PLAYING;
+  spawn_interval_ = DEFAULT_SPAWN_INTERVAL;
+  shoot_interval_ = DEFAULT_SHOOT_INTERVAL;
+
+  state_ = GameState::PLAYING;
+}
+
 void Game::handle_input() {
   if (IsKeyPressed(KEY_P)) {
     state_ = (state_ == GameState::PLAYING) ? GameState::PAUSE : GameState::PLAYING;
@@ -369,21 +399,7 @@ void Game::handle_input() {
   }
 
   if (IsKeyPressed(KEY_R) && state_ == GameState::GAMEOVER) {
-    player_ = std::make_unique<Player>(Vector2{
-      static_cast<float>(SCREEN_WIDTH) / 2.f,
-      static_cast<float>(SCREEN_HEIGHT) / 2.f
-    });
-    enemies_.clear();
-    bullets_.clear();
-    spawn_timer_ = spawn_interval_;
-    kill_count_ = 0;
-    game_time_ = 0.0f;
-    shoot_timer_ = 0.0f;
-    state_ = GameState::PLAYING;
-    spawn_interval_ = DEFAULT_SPAWN_INTERVAL;
-    shoot_interval_ = DEFAULT_SHOOT_INTERVAL;
-
-    state_ = GameState::PLAYING;
+    restart_game();
   }
 #ifdef _DEBUG
   // F1 - toggle debug info
@@ -395,9 +411,14 @@ void Game::handle_input() {
 
 void Game::toggle_language() {
   Language current = TextUtils::get_current_language();
-  Language new_lang = (current == Language::English) ?
-                      Language::Ukrainian : Language::English;
+  Language new_lang = (current == Language::English) ? Language::Ukrainian : Language::English;
   TextUtils::set_language(new_lang);
+}
+
+int Game::get_max_enemies() const {
+  const int base_max = 20;
+  const int difficulty_level = static_cast<int>(game_time_ / 30.f) + 1;
+  return base_max + (difficulty_level * 5);
 }
 
 void Game::check_collisions() {
