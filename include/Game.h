@@ -55,8 +55,8 @@ private:
 
   void restart_game();
 
-  Enemy* find_nearest_enemy() const;
-  Vector2 get_random_spawn_position() const;
+  [[nodiscard]] Enemy* find_nearest_enemy() const;
+  [[nodiscard]] Vector2 get_random_spawn_position() const;
 
   void update_difficulty();
 
