@@ -32,7 +32,7 @@ void Bullet::update() {
     }
 
     // Перевіряємо межі екрану
-    check_screen_bounds();
+    check_world_bounds();
 }
 
 void Bullet::draw() const {
@@ -61,13 +61,12 @@ Rectangle Bullet::get_bounds() const noexcept {
     };
 }
 
-void Bullet::check_screen_bounds() {
-    constexpr int SCREEN_WIDTH = 1024;
-    constexpr int SCREEN_HEIGHT = 768;
-    constexpr float margin = 50.0f;
-
-    if (position_.x < -margin || position_.x > SCREEN_WIDTH + margin ||
-        position_.y < -margin || position_.y > SCREEN_HEIGHT + margin) {
+void Bullet::check_world_bounds() {
+    constexpr int WORLD_WIDTH = 2048;
+    constexpr int WORLD_HEIGHT = 1536;
+    constexpr float margin = 100.0f;
+    if (position_.x < -margin || position_.x > WORLD_WIDTH + margin ||
+        position_.y < -margin || position_.y > WORLD_HEIGHT + margin) {
         active_ = false;
     }
 }

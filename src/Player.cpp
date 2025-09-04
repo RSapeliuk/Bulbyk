@@ -44,14 +44,14 @@ void Player::update() {
 
   velocity_ = Vector2{input_x, input_y};
 
+  constexpr float WORLD_WIDTH = 2048.0f;
+  constexpr float WORLD_HEIGHT = 1536.0f;
+
   position_.x += velocity_.x * speed_ * delta_time;
   position_.y += velocity_.y * speed_ * delta_time;
 
-  auto screen_width = static_cast<float>(GetScreenWidth());
-  auto screen_height = static_cast<float>(GetScreenHeight());
-
-  position_.x = std::clamp(position_.x, radius_, screen_width - radius_);
-  position_.y = std::clamp(position_.y, radius_, screen_height - radius_);
+  position_.x = std::clamp(position_.x, radius_, WORLD_WIDTH - radius_);
+  position_.y = std::clamp(position_.y, radius_, WORLD_HEIGHT - radius_);
 }
 
 void Player::draw() const {

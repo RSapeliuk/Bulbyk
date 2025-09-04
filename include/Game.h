@@ -5,6 +5,8 @@
 #include <string>
 
 #include "EnemyFactory.h"
+#include "PlayerCamera.h"
+#include "Constants.h"
 
 class Player;
 class Enemy;
@@ -12,17 +14,15 @@ class Bullet;
 
 class Game {
 public:
-  // Конструктор з default параметром
+
   explicit Game(std::string title = "🌾 БУЛЬБИК: ДО КОРЕНЯ ЗЛА");
 
-  // Rule of 5 - керуємо копіюванням і переміщенням
-  ~Game();                          // Деструктор автоматичний
-  Game(const Game&) = delete;                 // Заборона копіювання
-  Game& operator=(const Game&) = delete;      // Заборона присвоєння
-  Game(Game&&) = default;                     // Дозволяємо переміщення
-  Game& operator=(Game&&) = default;          // Дозволяємо присвоєння переміщення
+  ~Game();
+  Game(const Game&) = delete;
+  Game& operator=(const Game&) = delete;
+  Game(Game&&) = default;
+  Game& operator=(Game&&) = default;
 
-  // Головний метод запуску
   void run();
 
 private:
@@ -31,9 +31,14 @@ private:
   void update();
   void draw();
 
+  void draw_world_background() const;
+
   void draw_game_objects();
   void draw_state_messages() const;
   void draw_ui() const;
+  void draw_minimap() const;
+  void draw_world_bounds() const;
+  bool is_position_in_camera(Vector2 position, float margin = 100.f) const;
   void toggle_language();
 
   int get_max_enemies() const;
@@ -61,26 +66,21 @@ private:
   void draw_debug_info() const;
 #endif
 
-  // Константи класу
-  static constexpr int SCREEN_WIDTH = 1024;
-  static constexpr int SCREEN_HEIGHT = 768;
-  static constexpr float DEFAULT_SPAWN_INTERVAL = 0.3f;
-  static constexpr float DEFAULT_SHOOT_INTERVAL = 0.2f;
-
   // Основні об'єкти гри
   std::string title_;
-  GameState state_ = GameState::PLAYING;  // Ініціалізація відразу
+  GameState state_ = GameState::PLAYING;
 
   // Smart pointers замість raw
   std::unique_ptr<Player> player_;
   std::vector<std::unique_ptr<Enemy>> enemies_;
   std::vector<std::unique_ptr<Bullet>> bullets_;
+  std::unique_ptr<PlayerCamera> camera_;
 
   // Таймери і лічильники з ініціалізацією
   float spawn_timer_ = 0.0f;
-  float spawn_interval_ = DEFAULT_SPAWN_INTERVAL;
+  float spawn_interval_ = GameConstants::Gameplay::DEFAULT_SPAWN_INTERVAL;
   float shoot_timer_ = 0.0f;
-  float shoot_interval_ = DEFAULT_SHOOT_INTERVAL;
+  float shoot_interval_ = GameConstants::Gameplay::DEFAULT_SHOOT_INTERVAL;
   int kill_count_ = 0;
   float game_time_ = 0.0f;
 };

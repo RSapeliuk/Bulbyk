@@ -34,6 +34,6 @@ public:
   [[nodiscard]] Rectangle get_bounds() const noexcept;
 
 private:
-  void check_screen_bounds();
+  void check_world_bounds();
   Vector2 calculate_direction(Vector2 start, Vector2 target) const;
 };

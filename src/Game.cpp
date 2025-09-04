@@ -22,14 +22,18 @@ Game::Game(std::string title)
 }
 
 void Game::init() {
-  InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, title_.c_str());
+  InitWindow(GameConstants::SCREEN_WIDTH, GameConstants::SCREEN_HEIGHT, title_.c_str());
   SetTargetFPS(60);
   TextUtils::init_translations();
   InitAudioDevice();
 
+  camera_ = std::make_unique<PlayerCamera>(
+    Vector2{static_cast<float>(GameConstants::SCREEN_WIDTH), static_cast<float>(GameConstants::SCREEN_HEIGHT)},
+    Vector2{static_cast<float>(GameConstants::WORLD_WIDTH), static_cast<float>(GameConstants::WORLD_HEIGHT)});
+
   Vector2 player_start_pos = {
-    static_cast<float>(SCREEN_WIDTH) / 2.f,
-    static_cast<float>(SCREEN_HEIGHT) / 2.f
+    static_cast<float>(GameConstants::WORLD_WIDTH) / 2.f,
+    static_cast<float>(GameConstants::WORLD_HEIGHT) / 2.f
   };
 
   player_ = std::make_unique<Player>(player_start_pos);
@@ -48,6 +52,10 @@ void Game::update() {
       if (difficulty_timer <= 0.f) {
         difficulty_timer = 5.f;
         update_difficulty();
+      }
+
+      if (player_) {
+        camera_->update(player_->get_position());
       }
 
       if (player_ && player_->is_alive()) {
@@ -113,12 +121,70 @@ void Game::draw() {
   ClearBackground(background_color);
 
   if (state_ == GameState::PLAYING || state_ == GameState::PAUSE) {
+    camera_->begin_mode();
+    draw_world_background();
     draw_game_objects();
+    draw_world_bounds();
+    camera_->end_mode();
   }
 
   draw_ui();
+  draw_minimap();
 
   EndDrawing();
+}
+
+void Game::draw_world_background() const {
+  DrawRectangle(0, 0, GameConstants::WORLD_WIDTH, GameConstants::WORLD_HEIGHT, Color{34, 139, 34, 255});
+
+  const int grid_size = 64;
+  for (int x = 0; x < GameConstants::WORLD_WIDTH; x += grid_size) {
+    for (int y = 0; y < GameConstants::WORLD_HEIGHT; y += grid_size) {
+      DrawRectangleLines(x, y, grid_size, grid_size, ColorAlpha(BLACK, 0.1f));
+    }
+  }
+}
+
+void Game::draw_world_bounds() const {
+  DrawRectangleLines(0, 0, GameConstants::WORLD_WIDTH, GameConstants::WORLD_HEIGHT, RED);
+
+  constexpr int danger_zone = 20;
+
+  DrawRectangleLinesEx(Rectangle{
+                         danger_zone, danger_zone, GameConstants::WORLD_WIDTH - danger_zone * 2, GameConstants::WORLD_HEIGHT - danger_zone * 2
+                       }, 4.f, DARKPURPLE);
+}
+
+void Game::draw_minimap() const {
+  constexpr int minimap_size = 150;
+  const int minimap_x = GameConstants::SCREEN_WIDTH - minimap_size - 10;
+  const int minimap_y = 10;
+
+  DrawRectangle(minimap_x, minimap_y, minimap_size, minimap_size, ColorAlpha(BLACK, 0.7f));
+  DrawRectangleLines(minimap_x, minimap_y, minimap_size, minimap_size, Color{255, 255, 255, 255});
+
+  constexpr float scale_x = static_cast<float>(minimap_size) / GameConstants::WORLD_WIDTH;
+  constexpr float scale_y = static_cast<float>(minimap_size) / GameConstants::WORLD_HEIGHT;
+
+  if (player_) {
+    const auto pos = player_->get_position();
+    DrawCircle(minimap_x + static_cast<int>(pos.x * scale_x), minimap_y + static_cast<int>(pos.y * scale_y), 3.f, BLUE);
+  }
+
+  for (const auto& e: enemies_) {
+    if (e && e->is_alive()) {
+      const auto pos = e->get_position();
+      DrawCircle(minimap_x + static_cast<int>(pos.x * scale_x), minimap_y + static_cast<int>(pos.y * scale_y), 1.f, RED);
+    }
+  }
+
+  auto camera_bounds = camera_->get_camera_bounds();
+  DrawRectangleLines(
+    minimap_x + static_cast<int>(camera_bounds.x * scale_x),
+    minimap_y + static_cast<int>(camera_bounds.y * scale_y),
+     static_cast<int>(camera_bounds.width * scale_x),
+     static_cast<int>(camera_bounds.height * scale_y),
+     YELLOW);
 }
 
 void Game::draw_game_objects() {
@@ -176,8 +242,8 @@ void Game::draw_ui() const {
 }
 
 void Game::draw_state_messages() const {
-  const int center_x = SCREEN_WIDTH / 2;
-  const int center_y = SCREEN_HEIGHT / 2;
+  const int center_x = GameConstants::SCREEN_WIDTH / 2;
+  const int center_y = GameConstants::SCREEN_HEIGHT / 2;
 
   switch (state_) {
     case GameState::PAUSE: {
@@ -203,11 +269,11 @@ void Game::draw_state_messages() const {
     case GameState::PLAYING: {
       if (game_time_ < 10.0f) {
         TextUtils::draw_text_localized("move_controls",
-                                       10, SCREEN_HEIGHT - 80, 16, LIGHTGRAY);
+                                       10, GameConstants::SCREEN_HEIGHT - 80, 16, LIGHTGRAY);
         TextUtils::draw_text_localized("auto_shoot_hint",
-                                       10, SCREEN_HEIGHT - 60, 16, LIGHTGRAY);
+                                       10, GameConstants::SCREEN_HEIGHT - 60, 16, LIGHTGRAY);
         TextUtils::draw_text_localized("language_switch",
-                                       10, SCREEN_HEIGHT - 40, 16, LIGHTGRAY);
+                                       10, GameConstants::SCREEN_HEIGHT - 40, 16, LIGHTGRAY);
       }
       break;
     }
@@ -282,32 +348,38 @@ Vector2 Game::get_random_spawn_position() const {
   static std::random_device rd;
   static std::mt19937 gen{rd()};
 
+  auto camera_bounds = camera_->get_camera_bounds();
+  const float margin = 100.f;
+  const float spawn_left = std::max(0.f, camera_bounds.x - margin);
+  const float spawn_right = std::min(static_cast<float>(GameConstants::WORLD_WIDTH), camera_bounds.x + camera_bounds.width + margin);
+  const float spawn_top = std::max(0.f, camera_bounds.y - margin);
+  const float spawn_bottom = std::min(static_cast<float>(GameConstants::WORLD_HEIGHT), camera_bounds.y + camera_bounds.height + margin);
+
   std::uniform_int_distribution<int> side_dist(0, 3);
-  constexpr float offset = 100.f;
 
   switch (side_dist(gen)) {
     case 0: {
       // Зверху
-      std::uniform_real_distribution<float> x_dist(0.0f, SCREEN_WIDTH);
-      return Vector2{x_dist(gen), -offset};
+      std::uniform_real_distribution<float> x_dist(spawn_left, spawn_right);
+      return Vector2{x_dist(gen), spawn_top};
     }
     case 1: {
       // Справа
-      std::uniform_real_distribution<float> y_dist(0.0f, SCREEN_HEIGHT);
-      return Vector2{SCREEN_WIDTH + offset, y_dist(gen)};
+      std::uniform_real_distribution<float> y_dist(spawn_top, spawn_bottom);
+      return Vector2{spawn_right, y_dist(gen)};
     }
     case 2: {
       // Знизу
-      std::uniform_real_distribution<float> x_dist(0.0f, SCREEN_WIDTH);
-      return Vector2{x_dist(gen), SCREEN_HEIGHT + offset};
+      std::uniform_real_distribution<float> x_dist(spawn_left, spawn_right);
+      return Vector2{x_dist(gen), spawn_bottom};
     }
     case 3: {
       // Зліва
-      std::uniform_real_distribution<float> y_dist(0.0f, SCREEN_HEIGHT);
-      return Vector2{-offset, y_dist(gen)};
+      std::uniform_real_distribution<float> y_dist(spawn_top, spawn_bottom);
+      return Vector2{spawn_left, y_dist(gen)};
     }
     default:
-      return Vector2{0, -offset};
+      return Vector2{0, spawn_top};
   }
 }
 
@@ -315,9 +387,9 @@ void Game::update_difficulty() {
   constexpr float difficulty_time = 30.f;
   const int difficulty_level = static_cast<int>(game_time_ / difficulty_time) + 1;
 
-  spawn_interval_ = std::max(0.5f, DEFAULT_SPAWN_INTERVAL - (difficulty_level * 0.2f));
+  spawn_interval_ = std::max(0.5f, GameConstants::Gameplay::DEFAULT_SPAWN_INTERVAL - (difficulty_level * 0.2f));
 
-  shoot_interval_ = std::max(0.05f, DEFAULT_SHOOT_INTERVAL - (difficulty_level * 0.02f));
+  shoot_interval_ = std::max(0.05f, GameConstants::Gameplay::DEFAULT_SHOOT_INTERVAL - (difficulty_level * 0.02f));
 }
 
 void Game::spawn_enemy() {
@@ -373,8 +445,8 @@ void Game::update_timers() {
 
 void Game::restart_game() {
   player_ = std::make_unique<Player>(Vector2{
-    static_cast<float>(SCREEN_WIDTH) / 2.f,
-    static_cast<float>(SCREEN_HEIGHT) / 2.f
+    static_cast<float>(GameConstants::WORLD_WIDTH) / 2.f,
+    static_cast<float>(GameConstants::WORLD_HEIGHT) / 2.f
   });
   enemies_.clear();
   bullets_.clear();
@@ -383,8 +455,8 @@ void Game::restart_game() {
   game_time_ = 0.0f;
   shoot_timer_ = 0.0f;
   state_ = GameState::PLAYING;
-  spawn_interval_ = DEFAULT_SPAWN_INTERVAL;
-  shoot_interval_ = DEFAULT_SHOOT_INTERVAL;
+  spawn_interval_ = GameConstants::Gameplay::DEFAULT_SPAWN_INTERVAL;
+  shoot_interval_ = GameConstants::Gameplay::DEFAULT_SHOOT_INTERVAL;
 
   state_ = GameState::PLAYING;
 }
