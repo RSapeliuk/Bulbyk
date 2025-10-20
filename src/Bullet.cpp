@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "Constants.h"
+
 Bullet::Bullet(Vector2 start_pos, Vector2 target_pos, float speed, float damage)
     : position_{start_pos}
     , speed_{speed}
@@ -62,16 +64,14 @@ Rectangle Bullet::get_bounds() const noexcept {
 }
 
 void Bullet::check_world_bounds() {
-    constexpr int WORLD_WIDTH = 2048;
-    constexpr int WORLD_HEIGHT = 1536;
     constexpr float margin = 100.0f;
-    if (position_.x < -margin || position_.x > WORLD_WIDTH + margin ||
-        position_.y < -margin || position_.y > WORLD_HEIGHT + margin) {
+    if (position_.x < -margin || position_.x > GameConstants::WORLD_WIDTH + margin ||
+        position_.y < -margin || position_.y > GameConstants::WORLD_HEIGHT + margin) {
         active_ = false;
     }
 }
 
-Vector2 Bullet::calculate_direction(Vector2 start, Vector2 target) const {
+Vector2 Bullet::calculate_direction(Vector2 start, Vector2 target) {
     Vector2 direction = {
         target.x - start.x,
         target.y - start.y

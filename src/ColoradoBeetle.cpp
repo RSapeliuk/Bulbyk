@@ -3,7 +3,7 @@
 #include <algorithm>
 
 
-ColoradoBeetle::ColoradoBeetle(Vector2 position)
+ColoradoBeetle::ColoradoBeetle(const Vector2 position)
   : Enemy(position, 30.f,150.f,10.f,15.f)
   , color_(ORANGE)
 {}
@@ -30,7 +30,7 @@ void ColoradoBeetle::draw() const {
 
   // Індикатор здоров'я
   const float health_bar_width = radius_ * 2.0f;
-  const float health_bar_height = 3.0f;
+  constexpr float health_bar_height = 3.0f;
   const float health_percentage = health_ / max_health_;
 
   // Фон health bar

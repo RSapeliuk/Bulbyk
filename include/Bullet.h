@@ -35,5 +35,5 @@ public:
 
 private:
   void check_world_bounds();
-  Vector2 calculate_direction(Vector2 start, Vector2 target) const;
+  static Vector2 calculate_direction(Vector2 start, Vector2 target) ;
 };

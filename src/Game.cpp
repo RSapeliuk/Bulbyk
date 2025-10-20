@@ -73,13 +73,13 @@ void Game::update() {
         spawn_bullet();
       }
 
-      for (auto &e: enemies_) {
+      for (const auto &e: enemies_) {
         if (e && e->is_alive()) {
           e->update(player_->get_position());
         }
       }
 
-      for (auto &b: bullets_) {
+      for (const auto &b: bullets_) {
         if (b && b->is_active()) {
           b->update();
         }
@@ -101,17 +101,18 @@ void Game::update() {
   }
 }
 
-void Game::draw() {
+void Game::draw() const {
   BeginDrawing();
   Color background_color;
   switch (state_) {
-    case GameState::PLAYING:
+    using enum GameState;
+    case PLAYING:
       background_color = Color{34, 139, 34, 255};
       break;
-    case GameState::PAUSE:
+  case PAUSE:
       background_color = Color{64, 64, 64, 255};
-      break;
-    case GameState::GAMEOVER:
+    break;
+    case GAMEOVER:
       background_color = Color{139, 34, 34, 255};
       break;
     default:
@@ -187,18 +188,18 @@ void Game::draw_minimap() const {
      YELLOW);
 }
 
-void Game::draw_game_objects() {
+void Game::draw_game_objects() const {
   if (player_) {
     player_->draw();
   }
 
-  for (auto &e: enemies_) {
+  for (const auto &e: enemies_) {
     if (e && e->is_alive()) {
       e->draw();
     }
   }
 
-  for (auto &b: bullets_) {
+  for (const auto &b: bullets_) {
     if (b && b->is_active()) {
       b->draw();
     }
@@ -206,9 +207,9 @@ void Game::draw_game_objects() {
 }
 
 void Game::draw_ui() const {
-  const int ui_margin = 10;
-  const int ui_font_size = 20;
-  const int ui_line_height = 25;
+  constexpr int ui_margin = 10;
+  constexpr int ui_font_size = 20;
+  constexpr int ui_line_height = 25;
 
   int y_offset = ui_margin;
 
@@ -242,8 +243,8 @@ void Game::draw_ui() const {
 }
 
 void Game::draw_state_messages() const {
-  const int center_x = GameConstants::SCREEN_WIDTH / 2;
-  const int center_y = GameConstants::SCREEN_HEIGHT / 2;
+  constexpr int center_x = GameConstants::SCREEN_WIDTH / 2;
+  constexpr int center_y = GameConstants::SCREEN_HEIGHT / 2;
 
   switch (state_) {
     case GameState::PAUSE: {
@@ -285,9 +286,9 @@ void Game::draw_state_messages() const {
 void Game::draw_debug_info() const {
   if (!show_debug_info_) return;
 
-  const int debug_x = SCREEN_WIDTH - 250;
+  constexpr int debug_x = GameConstants::SCREEN_WIDTH - 250;
   int debug_y = 10;
-  const int line_height = 20;
+  constexpr int line_height = 20;
 
   TextUtils::draw_text_localized("debug_info", debug_x, debug_y, 16, YELLOW);
   debug_y += line_height;
@@ -349,33 +350,31 @@ Vector2 Game::get_random_spawn_position() const {
   static std::mt19937 gen{rd()};
 
   auto camera_bounds = camera_->get_camera_bounds();
-  const float margin = 100.f;
+  constexpr float margin = 100.f;
   const float spawn_left = std::max(0.f, camera_bounds.x - margin);
   const float spawn_right = std::min(static_cast<float>(GameConstants::WORLD_WIDTH), camera_bounds.x + camera_bounds.width + margin);
   const float spawn_top = std::max(0.f, camera_bounds.y - margin);
   const float spawn_bottom = std::min(static_cast<float>(GameConstants::WORLD_HEIGHT), camera_bounds.y + camera_bounds.height + margin);
 
-  std::uniform_int_distribution<int> side_dist(0, 3);
-
-  switch (side_dist(gen)) {
+  switch (std::uniform_int_distribution side_dist(0, 3); side_dist(gen)) {
     case 0: {
       // Зверху
-      std::uniform_real_distribution<float> x_dist(spawn_left, spawn_right);
+      std::uniform_real_distribution x_dist(spawn_left, spawn_right);
       return Vector2{x_dist(gen), spawn_top};
     }
     case 1: {
       // Справа
-      std::uniform_real_distribution<float> y_dist(spawn_top, spawn_bottom);
+      std::uniform_real_distribution y_dist(spawn_top, spawn_bottom);
       return Vector2{spawn_right, y_dist(gen)};
     }
     case 2: {
       // Знизу
-      std::uniform_real_distribution<float> x_dist(spawn_left, spawn_right);
+      std::uniform_real_distribution x_dist(spawn_left, spawn_right);
       return Vector2{x_dist(gen), spawn_bottom};
     }
     case 3: {
       // Зліва
-      std::uniform_real_distribution<float> y_dist(spawn_top, spawn_bottom);
+      std::uniform_real_distribution y_dist(spawn_top, spawn_bottom);
       return Vector2{spawn_left, y_dist(gen)};
     }
     default:
@@ -387,9 +386,9 @@ void Game::update_difficulty() {
   constexpr float difficulty_time = 30.f;
   const int difficulty_level = static_cast<int>(game_time_ / difficulty_time) + 1;
 
-  spawn_interval_ = std::max(0.5f, GameConstants::Gameplay::DEFAULT_SPAWN_INTERVAL - (difficulty_level * 0.2f));
+  spawn_interval_ = std::max(0.5f, GameConstants::Gameplay::DEFAULT_SPAWN_INTERVAL - (static_cast<float>(difficulty_level) * 0.2f));
 
-  shoot_interval_ = std::max(0.05f, GameConstants::Gameplay::DEFAULT_SHOOT_INTERVAL - (difficulty_level * 0.02f));
+  shoot_interval_ = std::max(0.05f, GameConstants::Gameplay::DEFAULT_SHOOT_INTERVAL - (static_cast<float>(difficulty_level) * 0.02f));
 }
 
 void Game::spawn_enemy() {
@@ -404,7 +403,7 @@ void Game::spawn_enemy() {
 void Game::spawn_bullet() {
   if (!player_ || !player_->is_alive()) return;
 
-  auto *target = find_nearest_enemy();
+  const auto *target = find_nearest_enemy();
   if (!target) return;
 
   auto bullet = std::make_unique<Bullet>(player_->get_position(), target->get_position(), 300.f, 25.f);
@@ -462,15 +461,16 @@ void Game::restart_game() {
 }
 
 void Game::handle_input() {
+  using enum GameState;
   if (IsKeyPressed(KEY_P)) {
-    state_ = (state_ == GameState::PLAYING) ? GameState::PAUSE : GameState::PLAYING;
+    state_ = (state_ == PLAYING) ? PAUSE : PLAYING;
   }
 
   if (IsKeyPressed(KEY_L)) {
     toggle_language();
   }
 
-  if (IsKeyPressed(KEY_R) && state_ == GameState::GAMEOVER) {
+  if (IsKeyPressed(KEY_R) && state_ == GAMEOVER) {
     restart_game();
   }
 #ifdef _DEBUG
@@ -482,13 +482,14 @@ void Game::handle_input() {
 }
 
 void Game::toggle_language() {
-  Language current = TextUtils::get_current_language();
-  Language new_lang = (current == Language::English) ? Language::Ukrainian : Language::English;
+  using enum Language;
+  const Language current = TextUtils::get_current_language();
+  const Language new_lang = (current == English) ? Ukrainian : English;
   TextUtils::set_language(new_lang);
 }
 
 int Game::get_max_enemies() const {
-  const int base_max = 20;
+  constexpr int base_max = 20;
   const int difficulty_level = static_cast<int>(game_time_ / 30.f) + 1;
   return base_max + (difficulty_level * 5);
 }
@@ -508,7 +509,7 @@ void Game::check_collisions() {
       break;
     }
   }
-  for (auto &b: bullets_) {
+  for (const auto &b: bullets_) {
     if (!b || !b->is_active()) continue;
 
     const auto bullet_bounds = b->get_bounds();
@@ -524,7 +525,6 @@ void Game::check_collisions() {
           e.reset();
           kill_count_++;
         }
-
         break;
       }
     }

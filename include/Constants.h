@@ -72,7 +72,7 @@ namespace GameConstants {
             constexpr float RADIUS = 15.0f;
             constexpr float ATTACK_INTERVAL = 1.0f;
             constexpr Color COLOR = ORANGE;
-            // Детали жука
+            // Деталі жука
             constexpr float STRIPE_OFFSET_X = 5.0f;
             constexpr float STRIPE_OFFSET_Y = 3.0f;
             constexpr float STRIPE_RADIUS = 2.0f;

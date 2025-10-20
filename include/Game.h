@@ -29,17 +29,17 @@ private:
   // Методи життєвого циклу
   void init();
   void update();
-  void draw();
+  void draw() const;
 
   void draw_world_background() const;
 
-  void draw_game_objects();
+  void draw_game_objects() const;
   void draw_state_messages() const;
   void draw_ui() const;
   void draw_minimap() const;
   void draw_world_bounds() const;
   bool is_position_in_camera(Vector2 position, float margin = 100.f) const;
-  void toggle_language();
+  static void toggle_language();
 
   int get_max_enemies() const;
 
