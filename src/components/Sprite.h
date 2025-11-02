@@ -4,7 +4,7 @@
 
 namespace Components {
 
-struct Sprite final : Component {
+struct Sprite : Component {
   std::string texture_name = "";
   Rectangle source_rect = {0, 0, 0, 0};
   Vector2 origin = {0.5f, 0.5f};

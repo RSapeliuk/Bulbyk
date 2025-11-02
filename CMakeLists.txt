@@ -85,8 +85,10 @@ endif()
 # ===========================================
 add_library(BulbykECS STATIC
         src/core/Entity.cpp
+        src/core/EntityManager.cpp
         src/systems/TransformSystem.cpp
         src/systems/RenderSystem.cpp
+        src/systems/CollisionSystem.cpp
 )
 
 target_include_directories(BulbykECS PUBLIC
@@ -104,6 +106,15 @@ add_executable(BulbykECSTest
 )
 
 target_link_libraries(BulbykECSTest PRIVATE BulbykECS ${RAYLIB_TARGET})
+
+# ===========================================
+# COLLISION TEST
+# ===========================================
+add_executable(BulbykCollisionTest
+        src/test_collision.cpp
+)
+
+target_link_libraries(BulbykCollisionTest PRIVATE BulbykECS ${RAYLIB_TARGET})
 
 
 # ===========================================
